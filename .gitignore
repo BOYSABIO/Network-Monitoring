@@ -1,0 +1,6 @@
+# Hide Large Files
+*.csv
+*.pcap
+
+# Hide Models
+*.joblib
