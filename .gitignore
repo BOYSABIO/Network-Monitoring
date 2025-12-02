@@ -4,3 +4,6 @@
 
 # Hide Models
 *.joblib
+
+# Hide Logs
+logs/
