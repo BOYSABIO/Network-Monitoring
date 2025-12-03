@@ -1,4 +1,6 @@
-# Check Schema, types, ranges, anomolies
+# Check Schema, data types, ranges, anomolies
+# CHECK ONLY PHASE
+# Example: NAN -> Checks amount of NANs and if exceeds a certain amount, then flag
 
 import logging
 import os
