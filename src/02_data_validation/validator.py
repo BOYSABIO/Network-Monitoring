@@ -1,1 +1,18 @@
 # Check Schema, types, ranges, anomolies
+
+import logging
+import os
+import pandas as pd
+import numpy as np
+
+def data_validator():
+    '''
+    Valdate data after loading
+    '''
+    try:
+        logging.info("Validating data after loading")
+        df = load_data()
+        logging.info("Data validated successfully")
+    except Exception as e:
+        logging.error(f"Error validating data: {e}")
+        raise e
