@@ -27,4 +27,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-    logging.info("Program ended successfully")
+    logging.info("Program ended successfully") 
+
+
+# Test
