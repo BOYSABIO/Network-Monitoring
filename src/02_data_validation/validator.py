@@ -6,6 +6,7 @@ import logging
 import os
 import pandas as pd
 import numpy as np
+from src.data_load.data_loader import load_data
 
 def data_validator():
     '''
@@ -18,3 +19,10 @@ def data_validator():
     except Exception as e:
         logging.error(f"Error validating data: {e}")
         raise e
+
+def main():
+    data_validator()
+
+if __name__ == "__main__":
+    main()
+    logging.info("Program ended successfully")
