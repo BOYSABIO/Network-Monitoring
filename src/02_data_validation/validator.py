@@ -13,6 +13,26 @@ def data_validator(df):
     Valdate data after loading
     '''
     try:
+        # Check Schema
+        logging.info("Checking schema")
+        # Check data types
+        # Check ranges
+        # Check anomalies
+        # Check missing values
+        if df.isna().sum().any():
+            logging.warning("Missing values found")
+        else:
+            logging.info("No missing values found")
+        # Check duplicates
+        if df.duplicated().any():
+            logging.warning("Duplicates found")
+        else:
+            logging.info("No duplicates found")
+        # Check outliers
+        # Check consistency
+        # Check completeness
+        # Check accuracy
+        # Check consistency
         logging.info("Validating data after loading")
         
         logging.info("Data validated successfully")
