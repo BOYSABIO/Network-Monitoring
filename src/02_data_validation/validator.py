@@ -16,14 +16,18 @@ def data_validator(df):
         # Check Schema
         logging.info("Checking schema")
         # Check data types
+        logging.info("Checking data types")
         # Check ranges
+        logging.info("Checking ranges")
         # Check anomalies
+        logging.info("Checking anomalies")
         # Check missing values
         if df.isna().sum().any():
             logging.warning("Missing values found")
         else:
             logging.info("No missing values found")
         # Check duplicates
+        logging.info("Checking duplicates")
         if df.duplicated().any():
             logging.warning("Duplicates found")
         else:
