@@ -6,8 +6,6 @@ import pandas as pd
 from src.data_load.data_loader import load_data
 from src.data_validation.validator import check_schema
 
-
-
 def preprocess(df):
     '''
     Drops extra columns
@@ -72,16 +70,28 @@ def preprocess(df):
         if extra_cols:
             logging.warning(f"Dropping extra columns: {extra_cols}")
             df = df.drop(columns=extra_cols)
+
+        # Change - to unknown
+        for column in list(df.columns):
+            df[column] = df[column].replace('-', 'unknown')
         
         df = df.dropna()
 
-        logging.info("Preprocessing Successfully Completed")
+        # Create Dummy Varables
+        logging.info(f"Number of columns before encoding: {len(list(df.columns))}")
+        df_encoded = pd.get_dummies(df, columns=['proto', 'service', 'state'])
+        df_encoded.drop(columns=['proto_tcp', 'service_unknown', 'state_INT'], inplace=True)
+        logging.info("Encoded dummy variables and dropped")
+
+        # Drop extra unnecessary variables
+        df_clean = df_encoded.drop(columns=['id', 'attack_cat'])
+        logging.info(f"Number of columns after encoding: {len(list(df_clean.columns))}")
 
     except Exception as e:
         logging.error(f"Error preprocessing data: {e}")
         raise e
 
-    return df
+    return df_clean
 
 def main():
     df = load_data()
