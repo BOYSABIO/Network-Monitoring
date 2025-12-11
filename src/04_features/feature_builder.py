@@ -57,6 +57,8 @@ def feature_engineering(df):
     y = df['label']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 42)
+    X_train.to_csv('../data/03_Enriched/train.csv')
+    X_test.to_csv('../data/03_Enriched/test.csv')
     logging.info(f"Training samples: {X_train.shape[0]} | Features: {X_train.shape[1]}")
     logging.info(f"Testing samples: {X_test.shape[0]}| Features: {X_test.shape[1]}")
 
