@@ -1,4 +1,6 @@
-# Training Script for Logistic Regression
+# Feature Engineering (if needed)
+# Same or more data
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -7,18 +9,13 @@ import logging
 from src.data_load.data_loader import load_data
 from src.preprocess.preprocess import preprocess
 from statsmodels.api import OLS, add_constant
-from src.data_validation.validator import data_validator
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import GridSearchCV
-import joblib
 
-def train_logreg(df):
+def feature_engineering(df):
     '''
-    Split for training
-    OLS Features / EDA for documentation
-    Train Model
-    Save
+    Feature Engineering
+    Same or more data
     '''
+
     numeric_features = [
         'dur',
         'spkts',
@@ -93,50 +90,14 @@ def train_logreg(df):
     ols_summary_df_sorted.to_csv('./reports/logreg/ols.csv')
     logging.info("Full OLS report logged in reports")
 
-    elastic_net = LogisticRegression(
-        penalty='elasticnet',
-        solver='saga',
-        max_iter=1000,
-        random_state=42
-    )
+    return X_train_scaled, X_test_scaled, y_train, y_test
 
-    param_grid = {
-        'C': [0.01, 0.1, 1.0, 10.0],
-        'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]
-    }
-
-    total_candidates = len(param_grid['C'] * len(param_grid['l1_ratio']))
-    total_fits = total_candidates * 3 #cv = 3
-    logging.info(f"Starting Elastic Net Grid Search over {total_candidates} combos ({total_fits} fits)...")
-
-    grid_search = GridSearchCV(
-        estimator=elastic_net,
-        param_grid=param_grid,
-        scoring='roc_auc',
-        cv=3,
-        n_jobs=-1,
-        verbose=3
-    )
-
-    grid_search.fit(X_train_scaled, y_train)
-    logging.info("Grid Search Complete. Selecting Best Model...")
-    best_model = grid_search.best_estimator_
-
-    y_pred = best_model.predict(X_test_scaled)
-    y_pred_prob = best_model.predict_proba(X_test_scaled)[:, 1]
-    logging.info(f"Best CV ROC-AUC: {grid_search.best_score_:3f}")
-    logging.info(f"Best Params: {grid_search.best_params_}")
-
-    joblib.dump(best_model, '../models/logreg.joblib')
-    logging.info("Model Saved")
 
 def main():
     df = load_data()
-    data_validator(df)
     processed = preprocess(df)
-    #feature_engineering(processed)
-    train_logreg(processed)
+    feature_engineering(processed)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-    logging.info("LogReg Training Completed.")
+    logging.info("Feature Engineering Completed Successfully")
