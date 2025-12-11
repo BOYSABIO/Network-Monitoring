@@ -81,7 +81,7 @@ def preprocess(df):
         logging.info(f"Number of columns before encoding: {len(list(df.columns))}")
         df_encoded = pd.get_dummies(df, columns=['proto', 'service', 'state'])
         df_encoded.drop(columns=['proto_tcp', 'service_unknown', 'state_INT'], inplace=True)
-        logging.info("Encoded dummy variables and dropped")
+        logging.info("Encoded dummy variables and dropped NANs")
 
         # Drop extra unnecessary variables
         df_clean = df_encoded.drop(columns=['id', 'attack_cat'])
