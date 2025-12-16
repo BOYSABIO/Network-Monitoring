@@ -105,7 +105,7 @@ def train_logreg(df):
         'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]
     }
 
-    total_candidates = len(param_grid['C'] * len(param_grid['l1_ratio']))
+    total_candidates = len(param_grid['C']) * len(param_grid['l1_ratio'])
     total_fits = total_candidates * 3 #cv = 3
     logging.info(f"Starting Elastic Net Grid Search over {total_candidates} combos ({total_fits} fits)...")
 
