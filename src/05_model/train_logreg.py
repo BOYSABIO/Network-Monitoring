@@ -4,6 +4,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 import numpy as np
 import logging
+
+from statsmodels.multivariate.manova import Model
 from src.data_load.data_loader import load_data
 from src.preprocess.preprocess import preprocess
 from statsmodels.api import OLS, add_constant
@@ -11,6 +13,7 @@ from src.data_validation.validator import data_validator
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
 import joblib
+import os
 
 def train_logreg(df):
     '''
@@ -61,6 +64,9 @@ def train_logreg(df):
     y = df['label']
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 42)
+
+    os.makedirs('./data/03_Enriched', exist_ok=True)
+
     X_train.to_csv('./data/03_Enriched/train.csv')
     X_test.to_csv('./data/03_Enriched/test.csv')
     logging.info(f"Train Data Saved \nTraining samples: {X_train.shape[0]} | Features: {X_train.shape[1]}")
@@ -90,14 +96,24 @@ def train_logreg(df):
     significant_mask = ols_summary_df_sorted['p_value'] < 0.05
     logging.info(f'Total features with p < 0.05: {significant_mask.sum()} out of {ols_summary_df_sorted.shape[0]}')
 
+    os.makedirs('./reports/logreg/', exist_ok=True)
+
     ols_summary_df_sorted.to_csv('./reports/logreg/ols.csv')
     logging.info("Full OLS report logged in reports")
 
-    elastic_net = LogisticRegression(
-        penalty='elasticnet',
-        solver='saga',
-        max_iter=1000,
-        random_state=42
+    # Research
+    # model = LogisticRegression(
+    #     penalty='elasticnet',
+    #     solver='saga',
+    #     max_iter=1000,
+    #     random_state=42
+    # )
+
+    # Development
+    model = LogisticRegression(
+        solver = 'lbfgs',
+        penalty = 'l2',
+        max_iter = 1000
     )
 
     param_grid = {
@@ -110,11 +126,10 @@ def train_logreg(df):
     logging.info(f"Starting Elastic Net Grid Search over {total_candidates} combos ({total_fits} fits)...")
 
     grid_search = GridSearchCV(
-        estimator=elastic_net,
+        estimator=model,
         param_grid=param_grid,
         scoring='roc_auc',
-        cv=3,
-        n_jobs=-1,
+        cv=3, 
         verbose=3
     )
 
@@ -127,7 +142,7 @@ def train_logreg(df):
     logging.info(f"Best CV ROC-AUC: {grid_search.best_score_:3f}")
     logging.info(f"Best Params: {grid_search.best_params_}")
 
-    joblib.dump(best_model, '../models/logreg.joblib')
+    joblib.dump(best_model, 'models/logreg.joblib')
     logging.info("Model Saved")
 
 def main():
