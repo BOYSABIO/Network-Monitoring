@@ -5,10 +5,8 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 import logging
 
-from statsmodels.multivariate.manova import Model
 from src.data_load.data_loader import load_data
 from src.preprocess.preprocess import preprocess
-from statsmodels.api import OLS, add_constant
 from src.data_validation.validator import data_validator
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import GridSearchCV
@@ -72,34 +70,19 @@ def train_logreg(df):
     logging.info(f"Train Data Saved \nTraining samples: {X_train.shape[0]} | Features: {X_train.shape[1]}")
     logging.info(f"Test Data Saved \nTesting samples: {X_test.shape[0]}| Features: {X_test.shape[1]}")
 
+    # Scaling: fit ONLY on training data to prevent data leakage.
+    # If we fit on test data too, the model "sees" test distributions during training,
+    # which inflates metrics and gives a false sense of accuracy.
     scaler = StandardScaler()
-    X_train_scaled_num = scaler.fit_transform(X_train[numeric_features])
-    X_test_scaled_num = scaler.fit_transform(X_test[numeric_features])
+    X_train_scaled_num = scaler.fit_transform(X_train[numeric_features])  # learn mean/std from train
+    X_test_scaled_num = scaler.transform(X_test[numeric_features])        # apply train's mean/std to test
 
     # Combine back together
     X_train_scaled = np.hstack([X_train_scaled_num, X_train[categorical_features].values])
     X_test_scaled = np.hstack([X_test_scaled_num, X_test[categorical_features].values])
 
-    # Feature Analysis
-    logging.info('OLS Feature Sigificance...')
-    ols_X = X_train.astype(float)
-    ols_X_const = add_constant(ols_X)
-    ols_model = OLS(y_train, ols_X_const).fit()
-
-    ols_summary_df = (
-        pd.DataFrame(ols_model.params, columns = ['coef'])
-        .join(ols_model.pvalues.rename('p_value'))
-        .join(ols_model.bse.rename('std_err'))
-    )
-
-    ols_summary_df_sorted = ols_summary_df.sort_values('p_value')
-    significant_mask = ols_summary_df_sorted['p_value'] < 0.05
-    logging.info(f'Total features with p < 0.05: {significant_mask.sum()} out of {ols_summary_df_sorted.shape[0]}')
-
-    os.makedirs('./reports/logreg/', exist_ok=True)
-
-    ols_summary_df_sorted.to_csv('./reports/logreg/ols.csv')
-    logging.info("Full OLS report logged in reports")
+    # OLS feature analysis is now in src/utils/ols_analysis.py
+    # Run it separately: from src.utils.ols_analysis import run_ols_analysis
 
     # Research
     # model = LogisticRegression(

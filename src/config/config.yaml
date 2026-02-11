@@ -1,1 +1,139 @@
-# Paths, feature list, model setting
+# ============================================================
+# Network Monitoring MLOps Pipeline — Central Configuration
+# ============================================================
+# All paths, feature definitions, and model settings live here.
+# Modules read from this file instead of hardcoding values.
+
+# --- Directory paths (relative to project root) ---
+paths:
+  raw_data: data/01_Raw/rawdata.csv
+  processed: data/02_Processed/
+  enriched: data/03_Enriched/
+  models: models/
+  reports: reports/
+  logs: logs/
+  zeek_logs: data/zeek_logs/
+
+# --- Model training settings ---
+model:
+  # Which model to train/evaluate — must match a key in the registry
+  active: logistic_regression
+  test_size: 0.2
+  random_state: 42
+  cv_folds: 3
+  scoring: roc_auc
+
+# --- Zeek ingestion settings ---
+zeek:
+  binary: zeek                # path to zeek binary
+  watch_interval: 2           # seconds between polling for new connections in live mode
+
+# --- Feature definitions ---
+# These lists are the single source of truth used by preprocessing,
+# feature engineering, training, and inference.
+features:
+  target: label
+
+  # Numeric features — these get StandardScaler applied
+  numeric:
+    - dur
+    - spkts
+    - dpkts
+    - sbytes
+    - dbytes
+    - rate
+    - sttl
+    - dttl
+    - sload
+    - dload
+    - sloss
+    - dloss
+    - sinpkt
+    - dinpkt
+    - sjit
+    - djit
+    - swin
+    - stcpb
+    - dtcpb
+    - dwin
+    - tcprtt
+    - synack
+    - ackdat
+    - smean
+    - dmean
+    - trans_depth
+    - response_body_len
+    - ct_srv_src
+    - ct_state_ttl
+    - ct_dst_ltm
+    - ct_src_dport_ltm
+    - ct_dst_sport_ltm
+    - ct_dst_src_ltm
+
+  # Categorical features — these get one-hot (dummy) encoded
+  categorical:
+    - proto
+    - service
+    - state
+
+  # Columns to drop before training (not useful as features)
+  drop_columns:
+    - id
+    - attack_cat
+
+  # Reference dummies to drop to avoid multicollinearity
+  # (most frequent category in each categorical feature acts as baseline)
+  drop_dummies:
+    - proto_tcp
+    - service_unknown
+    - state_INT
+
+# --- Raw data expected schema ---
+# Used by the data validator to check incoming data quality.
+# Maps column name -> expected pandas dtype string.
+schema:
+  id: int64
+  dur: float64
+  proto: object
+  service: object
+  state: object
+  spkts: int64
+  dpkts: int64
+  sbytes: int64
+  dbytes: int64
+  rate: float64
+  sttl: int64
+  dttl: int64
+  sload: float64
+  dload: float64
+  sloss: int64
+  dloss: int64
+  sinpkt: float64
+  dinpkt: float64
+  sjit: float64
+  djit: float64
+  swin: int64
+  stcpb: int64
+  dtcpb: int64
+  dwin: int64
+  tcprtt: float64
+  synack: float64
+  ackdat: float64
+  smean: int64
+  dmean: int64
+  trans_depth: int64
+  response_body_len: int64
+  ct_srv_src: int64
+  ct_state_ttl: int64
+  ct_dst_ltm: int64
+  ct_src_dport_ltm: int64
+  ct_dst_sport_ltm: int64
+  ct_dst_src_ltm: int64
+  is_ftp_login: int64
+  ct_ftp_cmd: int64
+  ct_flw_http_mthd: int64
+  ct_src_ltm: int64
+  ct_srv_dst: int64
+  is_sm_ips_ports: int64
+  attack_cat: object
+  label: int64

@@ -1,49 +1,42 @@
-# Load Raw CSV/PCAP -> DataFrame
+# Data Loader
+# -----------
+# Loads the raw CSV dataset into a pandas DataFrame.
+# This is the entry point of the training pipeline — raw data in, DataFrame out.
 
-import os
-import logging 
+import logging
 import pandas as pd
 
-# TRY TO MOVE THE LOGGER TO SEPERATE CONFIG
-# Set up the logging configuration
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
-# Create file handler
-file_handler = logging.FileHandler('logs/data_loader.log')
-file_handler.setLevel(logging.INFO)
-file_format = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(file_format)
+def load_data(raw_data_path='data/01_Raw/rawdata.csv'):
+    """
+    Load the raw CSV file into a DataFrame.
 
-# Create console handler
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(file_format)
+    Parameters
+    ----------
+    raw_data_path : str
+        Path to the CSV file (relative to project root or absolute).
 
-# Add the handlers to the logger
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
-
-
-def load_data(raw_data_path = 'data/01_Raw/rawdata.csv'):
-    '''
-    Load data from raw data path
-    '''
+    Returns
+    -------
+    pd.DataFrame
+        The raw dataset, unmodified.
+    """
     try:
         logging.info(f"Loading data from {raw_data_path}")
         df = pd.read_csv(raw_data_path)
-        logging.info(f"Data loaded successfully with {df.shape[0]} rows and {df.shape[1]} columns")
+        logging.info(f"Data loaded: {df.shape[0]} rows, {df.shape[1]} columns")
         return df
     except Exception as e:
-        logging.error(f"Error loading data: {e}")
-        raise e
+        logging.error(f"Failed to load data: {e}")
+        raise
+
 
 def main():
+    """Standalone entry point for testing the loader."""
+    from src.utils.logger import setup_logger
+    setup_logger()
     load_data()
-    logging.info("Data loaded successfully")
+
 
 if __name__ == "__main__":
     main()
-    logging.info("Program ended successfully") 
-
-

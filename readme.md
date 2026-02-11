@@ -75,6 +75,55 @@ Rather than jumping straight to intrusion detection or ML models, the emphasis i
 
 ---
 
+## CLI Usage
+
+All pipeline commands are run through a single entry point. Requires dependencies from `requirements.txt`.
+
+```bash
+pip install -r requirements.txt
+```
+
+### Train a model
+
+```bash
+python -m src.main train --model logistic_regression
+python -m src.main train --model random_forest
+python -m src.main train --model logistic_regression --data path/to/data.csv
+```
+
+### Evaluate a trained model
+
+```bash
+python -m src.main evaluate
+python -m src.main evaluate --model random_forest
+```
+
+### Run inference on a PCAP or CSV file
+
+```bash
+python -m src.main infer --input capture.pcap
+python -m src.main infer --input data/test_data.csv
+python -m src.main infer --input capture.pcap --output reports/results.csv
+```
+
+### Live monitoring on a network interface
+
+```bash
+python -m src.main live --interface eth0
+python -m src.main live --interface wlan0 --duration 300
+```
+
+Requires [Zeek](https://zeek.org/get-zeek/) to be installed.
+
+### OLS feature significance analysis
+
+```bash
+python -m src.main ols
+python -m src.main ols --data path/to/data.csv --output reports/ols/
+```
+
+---
+
 ## Future Directions
 
 Planned and potential extensions include:
