@@ -30,7 +30,7 @@ def cmd_train(args):
     config = get_config()
     model_name = args.model or config['model']['active']
 
-    logging.info(f"=== TRAINING PIPELINE: {model_name} ===")
+    logging.info(f"=== TRAINING PIPELINE: {model_name} (mode={args.mode}) ===")
 
     # Step 1: Load raw data
     raw_path = args.data or config['paths']['raw_data']
@@ -43,7 +43,7 @@ def cmd_train(args):
     df_processed = preprocess(df)
 
     # Step 4: Train model with GridSearchCV
-    artifact = train(df_processed, model_name=model_name)
+    artifact = train(df_processed, model_name=model_name, mode=args.mode)
 
     logging.info(
         f"=== TRAINING COMPLETE: {model_name} — "
@@ -192,7 +192,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python -m src.main train --model logistic_regression
+  python -m src.main train --model logistic_regression --mode dev
   python -m src.main evaluate
   python -m src.main infer --input capture.pcap
   python -m src.main live --interface eth0 --duration 300
@@ -208,6 +208,13 @@ Examples:
                          help='Model name from registry (default: config active)')
     p_train.add_argument('--data', type=str, default=None,
                          help='Path to raw CSV data (default: config path)')
+    p_train.add_argument(
+        '--mode',
+        type=str,
+        choices=['dev', 'prod'],
+        default='prod',
+        help='Training profile: dev (fast) or prod (full search)'
+    )
 
     # --- evaluate ---
     p_eval = subparsers.add_parser('evaluate', help='Evaluate a trained model')

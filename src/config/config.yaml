@@ -25,7 +25,7 @@ model:
 
 # --- Zeek ingestion settings ---
 zeek:
-  binary: zeek                # path to zeek binary
+  binary: /opt/zeek/bin/zeek  # explicit path (Fedora package installs under /opt/zeek/bin)
   watch_interval: 2           # seconds between polling for new connections in live mode
 
 # --- Feature definitions ---

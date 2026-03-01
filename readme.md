@@ -86,10 +86,19 @@ pip install -r requirements.txt
 ### Train a model
 
 ```bash
-python -m src.main train --model logistic_regression
-python -m src.main train --model random_forest
-python -m src.main train --model logistic_regression --data path/to/data.csv
+python -m src.main train --model logistic_regression --mode dev
+python -m src.main train --model logistic_regression --mode prod
+python -m src.main train --model random_forest --mode dev
+python -m src.main train --model logistic_regression --mode prod --data path/to/data.csv
 ```
+
+- `--mode dev`: faster iteration (smaller hyperparameter grid, fewer CV folds)
+- `--mode prod`: fuller search for final model selection
+- if `--model` is omitted, the pipeline uses `model.active` from `src/config/config.yaml`
+- overfitting diagnostics are saved to `reports/<model>/overfitting_diagnostics.csv`
+- training logs include both CV model-selection metrics and held-out test overfitting gaps
+- training is centralized through `src.main -> src.model.trainer -> src.model.registry`
+- legacy standalone scripts under `src/model/` were removed to avoid duplicate training paths
 
 ### Evaluate a trained model
 
@@ -97,6 +106,10 @@ python -m src.main train --model logistic_regression --data path/to/data.csv
 python -m src.main evaluate
 python -m src.main evaluate --model random_forest
 ```
+
+`evaluate` reports post-training held-out test metrics from the saved artifact and
+saved test split, separate from GridSearchCV model-selection metrics logged during
+`train`.
 
 ### Run inference on a PCAP or CSV file
 
@@ -109,11 +122,68 @@ python -m src.main infer --input capture.pcap --output reports/results.csv
 ### Live monitoring on a network interface
 
 ```bash
-python -m src.main live --interface eth0
-python -m src.main live --interface wlan0 --duration 300
+python -m src.main live --interface wlp0s20f3
+python -m src.main live --interface wlp0s20f3 --duration 300
 ```
 
 Requires [Zeek](https://zeek.org/get-zeek/) to be installed.
+
+### Zeek setup and operations (Fedora)
+
+If Zeek is not installed yet:
+
+```bash
+sudo dnf install -y zeek zeekctl
+```
+
+Verify binaries:
+
+```bash
+/opt/zeek/bin/zeek --version
+/opt/zeek/bin/zeekctl
+```
+
+Add Zeek to your shell `PATH` (recommended):
+
+```bash
+echo 'export PATH="/opt/zeek/bin:$PATH"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+If `zeekctl` crashes immediately on Fedora, it is usually an interface mismatch
+in `/opt/zeek/etc/node.cfg` (default often `eth0`). Set it to your real NIC:
+
+```bash
+ip -br link
+sudo sed -i 's/^interface=.*/interface=wlp0s20f3/' /opt/zeek/etc/node.cfg
+```
+
+Common ZeekControl workflow:
+
+```bash
+zeekctl
+# inside zeekctl shell:
+check
+deploy
+status
+diag
+stop
+start
+```
+
+Useful log/debug locations:
+
+```bash
+/opt/zeek/logs/current/
+/opt/zeek/spool/zeek/
+```
+
+Optional warning cleanup:
+
+```bash
+python3 -m pip install websockets   # removes websocket warning
+sudo dnf install -y sendmail        # enables zeekctl mail notifications
+```
 
 ### OLS feature significance analysis
 

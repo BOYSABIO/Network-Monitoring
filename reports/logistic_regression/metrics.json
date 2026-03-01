@@ -1,0 +1,20 @@
+{
+  "model_name": "logistic_regression",
+  "accuracy": 0.9007276608130397,
+  "roc_auc": 0.9750411702098136,
+  "confusion_matrix": [
+    [
+      14562,
+      4038
+    ],
+    [
+      1078,
+      31857
+    ]
+  ],
+  "best_params": {
+    "C": 1.0,
+    "l1_ratio": 0.7
+  },
+  "best_cv_score": 0.9745657308853659
+}

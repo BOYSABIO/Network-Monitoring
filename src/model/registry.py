@@ -24,7 +24,7 @@ def register(name):
     return decorator
 
 
-def get_model(name):
+def get_model(name, mode='prod'):
     """
     Look up a registered model builder by name and call it.
 
@@ -45,7 +45,7 @@ def get_model(name):
             f"Model '{name}' not found in registry. "
             f"Available models: {available}"
         )
-    return REGISTRY[name]()
+    return REGISTRY[name](mode=mode)
 
 
 # -------------------------------------------------------
@@ -53,7 +53,7 @@ def get_model(name):
 # -------------------------------------------------------
 
 @register("logistic_regression")
-def build_logistic_regression():
+def build_logistic_regression(mode='prod'):
     """
     Logistic Regression with Elastic Net regularization.
 
@@ -79,16 +79,24 @@ def build_logistic_regression():
     # Grid of hyperparameters to search over:
     # C = inverse regularization strength (smaller C = more regularization)
     # l1_ratio = balance between L1 and L2 penalty
-    param_grid = {
-        'C': [0.01, 0.1, 1.0, 10.0],
-        'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]
-    }
+    if mode == 'dev':
+        # Fast iteration profile.
+        param_grid = {
+            'C': [0.1, 1.0],
+            'l1_ratio': [0.3, 0.7],
+        }
+    else:
+        # Full search profile.
+        param_grid = {
+            'C': [0.01, 0.1, 1.0, 10.0],
+            'l1_ratio': [0.1, 0.3, 0.5, 0.7, 0.9]
+        }
 
     return model, param_grid
 
 
 @register("random_forest")
-def build_random_forest():
+def build_random_forest(mode='prod'):
     """
     Random Forest Classifier.
 
@@ -105,10 +113,17 @@ def build_random_forest():
         n_jobs=-1  # use all CPU cores for parallel tree building
     )
 
-    param_grid = {
-        'n_estimators': [100, 200],
-        'max_depth': [10, 20, None],
-        'min_samples_split': [2, 5]
-    }
+    if mode == 'dev':
+        param_grid = {
+            'n_estimators': [100],
+            'max_depth': [10, None],
+            'min_samples_split': [2],
+        }
+    else:
+        param_grid = {
+            'n_estimators': [100, 200],
+            'max_depth': [10, 20, None],
+            'min_samples_split': [2, 5]
+        }
 
     return model, param_grid

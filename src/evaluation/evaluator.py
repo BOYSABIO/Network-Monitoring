@@ -57,6 +57,9 @@ def evaluate(artifact_path, X_test, y_test):
     model_name = artifact['model_name']
 
     logging.info(f"Evaluating model: {model_name}")
+    logging.info("Evaluation context: post-training metrics on held-out test split")
+    logging.info("These are not GridSearchCV train/validation fold metrics")
+    logging.info(f"Best CV score from training artifact: {artifact.get('best_score', 0):.4f}")
 
     # ------------------------------------------------------------------
     # 2. Scale test data using the TRAINING scaler (no leakage)
