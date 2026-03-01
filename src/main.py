@@ -53,9 +53,7 @@ def cmd_train(args):
 
 def cmd_evaluate(args):
     """Evaluate a trained model on test data."""
-    import importlib
-    evaluator = importlib.import_module('src.06_evaluation.evaluator')
-    evaluate = evaluator.evaluate
+    from src.evaluation.evaluator import evaluate
 
     config = get_config()
     model_name = args.model or config['model']['active']
@@ -86,9 +84,7 @@ def cmd_evaluate(args):
 
 def cmd_infer(args):
     """Run inference on a PCAP file or CSV file."""
-    import importlib
-    predictor = importlib.import_module('src.07_inference.predictor')
-    predict = predictor.predict
+    from src.inference.predictor import predict
 
     config = get_config()
     input_path = args.input
@@ -102,8 +98,7 @@ def cmd_infer(args):
     # Determine input type by extension
     if input_path.endswith('.pcap') or input_path.endswith('.pcapng'):
         # PCAP: run through Zeek first to extract features
-        ingestion = importlib.import_module('src.08_ingestion.pcap_to_features')
-        ingest_pcap = ingestion.ingest_pcap
+        from src.ingestion.pcap_to_features import ingest_pcap
         df = ingest_pcap(input_path)
     elif input_path.endswith('.csv'):
         # CSV: load directly (assumed to have the right columns)
@@ -129,12 +124,8 @@ def cmd_infer(args):
 
 def cmd_live(args):
     """Live monitoring on a network interface."""
-    import importlib
-    predictor = importlib.import_module('src.07_inference.predictor')
-    predict = predictor.predict
-    load_artifact = predictor.load_artifact
-    ingestion = importlib.import_module('src.08_ingestion.pcap_to_features')
-    ingest_live = ingestion.ingest_live
+    from src.inference.predictor import predict, load_artifact
+    from src.ingestion.pcap_to_features import ingest_live
 
     config = get_config()
 

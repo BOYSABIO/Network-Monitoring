@@ -124,6 +124,36 @@ python -m src.main ols --data path/to/data.csv --output reports/ols/
 
 ---
 
+## Pipeline Architecture
+
+The ML pipeline under `src/` follows this order:
+
+```
+config         Configuration loader (config.yaml)
+   ↓
+data_load      Load raw CSV data
+   ↓
+data_validation   Schema checks and data quality gates
+   ↓
+preprocess     Clean, encode, and transform features
+   ↓
+features       Feature engineering and selection
+   ↓
+model          Training with GridSearchCV, model registry
+   ↓
+evaluation     Metrics, confusion matrix, ROC curves
+   ↓
+inference      Classify new connections using a trained model
+   ↓
+ingestion      PCAP → Zeek → feature DataFrame (batch and live)
+   ↓
+api            REST API for serving predictions
+```
+
+Supporting modules: `utils` (logging, OLS analysis).
+
+---
+
 ## Future Directions
 
 Planned and potential extensions include:
