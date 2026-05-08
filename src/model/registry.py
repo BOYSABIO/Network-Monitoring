@@ -87,6 +87,24 @@ def build_logistic_regression():
     return model, param_grid
 
 
+@register("logistic_regression_fast")
+def build_logistic_regression_fast():
+    """
+    Logistic Regression without grid search.
+    """
+    from sklearn.linear_model import LogisticRegression
+    model = LogisticRegression(
+        penalty='elasticnet',
+        solver='saga',
+        l1_ratio=0.1,
+        C=0.01,
+        max_iter=1000,
+        random_state=42
+    )
+    param_grid = {}
+    return model, param_grid
+
+
 @register("random_forest")
 def build_random_forest():
     """

@@ -4,8 +4,8 @@
 #
 #   python -m src.main train       --model logistic_regression
 #   python -m src.main evaluate    --model logistic_regression
-#   python -m src.main infer       --input capture.pcap
-#   python -m src.main live        --interface eth0
+#   python -m src.main infer       --input capture.pcap [--model NAME]
+#   python -m src.main live        --interface eth0 [--model NAME]
 #   python -m src.main ols         (run OLS feature analysis)
 #
 # Each subcommand wires together the appropriate modules.
@@ -42,12 +42,21 @@ def cmd_train(args):
     # Step 3: Preprocess (clean, encode, drop columns)
     df_processed = preprocess(df)
 
+    # Persist the fully preprocessed dataset for inspection/reuse
+    processed_dir = config['paths']['processed']
+    os.makedirs(processed_dir, exist_ok=True)
+    processed_path = os.path.join(processed_dir, 'preprocessed.csv')
+    df_processed.to_csv(processed_path, index=False)
+    logging.info(f"Preprocessed dataset saved to {processed_path}")
+
     # Step 4: Train model with GridSearchCV
     artifact = train(df_processed, model_name=model_name)
 
+    best_score = artifact.get('best_score')
+    score_text = f"{best_score:.4f}" if best_score is not None else "N/A (grid skipped)"
     logging.info(
         f"=== TRAINING COMPLETE: {model_name} — "
-        f"Best CV score: {artifact['best_score']:.4f} ==="
+        f"Best CV score: {score_text} ==="
     )
 
 
@@ -93,7 +102,14 @@ def cmd_infer(args):
         logging.error(f"Input file not found: {input_path}")
         sys.exit(1)
 
-    logging.info(f"=== INFERENCE: {input_path} ===")
+    model_name = args.model or config['model']['active']
+    artifact_path = os.path.join(config['paths']['models'], f'{model_name}.joblib')
+    if not os.path.exists(artifact_path):
+        logging.error(
+            f"No artifact at {artifact_path}. Train with --model {model_name} first."
+        )
+        sys.exit(1)
+    logging.info(f"=== INFERENCE: {input_path} (model={model_name}) ===")
 
     # Determine input type by extension
     if input_path.endswith('.pcap') or input_path.endswith('.pcapng'):
@@ -108,13 +124,17 @@ def cmd_infer(args):
         sys.exit(1)
 
     # Run predictions
-    results = predict(df)
+    results = predict(df, artifact_path=artifact_path)
 
     # Save results
     output_path = args.output or 'reports/inference_results.csv'
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
     results.to_csv(output_path, index=False)
     logging.info(f"Results saved to {output_path}")
+
+    # Save results to a NDJSON file
+    results.to_json("reports/inference_results.ndjson", orient="records", lines=True)
+    logging.info(f'Json file saved to reports/inference_results.ndjson')
 
     # Print summary
     n_malicious = (results['prediction'] == 1).sum()
@@ -129,10 +149,20 @@ def cmd_live(args):
 
     config = get_config()
 
-    logging.info(f"=== LIVE MONITORING: {args.interface} ===")
+    model_name = args.model or config['model']['active']
+    artifact_path = os.path.join(config['paths']['models'], f'{model_name}.joblib')
+    if not os.path.exists(artifact_path):
+        logging.error(
+            f"No artifact at {artifact_path}. Train with --model {model_name} first."
+        )
+        sys.exit(1)
+
+    logging.info(
+        f"=== LIVE MONITORING: {args.interface} (model={model_name}) ==="
+    )
 
     # Pre-load the model artifact once (avoid reloading per batch)
-    artifact = load_artifact()
+    artifact = load_artifact(artifact_path)
 
     def on_new_connections(df):
         """Callback: classify each batch of new connections."""
@@ -194,8 +224,8 @@ def main():
 Examples:
   python -m src.main train --model logistic_regression
   python -m src.main evaluate
-  python -m src.main infer --input capture.pcap
-  python -m src.main live --interface eth0 --duration 300
+  python -m src.main infer --input capture.pcap --model logistic_regression_fast
+  python -m src.main live --interface eth0 --duration 300 --model logistic_regression_fast
   python -m src.main ols
         """
     )
@@ -220,6 +250,8 @@ Examples:
                          help='Path to .pcap or .csv file')
     p_infer.add_argument('--output', type=str, default=None,
                          help='Path for results CSV (default: reports/inference_results.csv)')
+    p_infer.add_argument('--model', type=str, default=None,
+                         help='Trained model name (artifact models/<name>.joblib; default: config active)')
 
     # --- live ---
     p_live = subparsers.add_parser('live', help='Live monitoring on a network interface')
@@ -227,6 +259,8 @@ Examples:
                         help='Network interface (e.g., eth0, wlan0)')
     p_live.add_argument('--duration', type=int, default=None,
                         help='Stop after N seconds (default: run until Ctrl+C)')
+    p_live.add_argument('--model', type=str, default=None,
+                        help='Trained model name (artifact models/<name>.joblib; default: config active)')
 
     # --- ols ---
     p_ols = subparsers.add_parser('ols', help='Run OLS feature significance analysis')

@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import roc_auc_score
 
 from src.model.registry import get_model
 from src.config.loader import get_config
@@ -83,7 +84,9 @@ def train(df, model_name=None):
     # Identify which columns in the encoded DataFrame are numeric
     # (some original numeric features remain, categorical ones are now dummies)
     numeric_cols = [c for c in X_train.columns if c in numeric_features]
-    categorical_cols = [c for c in X_train.columns if c not in numeric_features]
+    categorical_cols = [
+        c for c in X_train.columns if c not in numeric_features
+        ]
 
     # fit ONLY on train to prevent data leakage
     scaler = StandardScaler()
@@ -100,57 +103,79 @@ def train(df, model_name=None):
     # 3. Get model and hyperparameter grid from registry
     # ------------------------------------------------------------------
     model, param_grid = get_model(model_name)
-    total_combos = 1
-    for vals in param_grid.values():
-        total_combos *= len(vals)
-    total_fits = total_combos * cv_folds
+    reports_dir = os.path.join(config['paths']['reports'], model_name)
+    os.makedirs(reports_dir, exist_ok=True)
 
-    logging.info(
-        f"GridSearchCV: {total_combos} combos x {cv_folds} folds = "
-        f"{total_fits} fits, scoring={scoring}"
-    )
-    logging.info(
-        f"Training on {X_train_scaled.shape[0]} samples with "
-        f"{X_train_scaled.shape[1]} features — this may take several minutes"
-    )
-
-    # ------------------------------------------------------------------
-    # 4. Hyperparameter tuning via cross-validation
-    # ------------------------------------------------------------------
-    # GridSearchCV tries every combination in param_grid and picks the
-    # one with the best cross-validated score on the TRAINING set only.
-    #
-    # verbose=3 prints a line per fit so you can track progress.
-    # n_jobs=1 (sequential) ensures verbose output actually prints to terminal.
-    # Parallel mode (n_jobs=-1) is faster but swallows verbose output due to
-    # buffering in child processes, making it look like the training hangs.
     import time
     start_time = time.time()
 
-    grid_search = GridSearchCV(
-        estimator=model,
-        param_grid=param_grid,
-        scoring=scoring,
-        cv=cv_folds,
-        verbose=3,
-        n_jobs=1
-    )
+    if param_grid:
+        total_combos = 1
+        for vals in param_grid.values():
+            total_combos *= len(vals)
+        total_fits = total_combos * cv_folds
 
-    grid_search.fit(X_train_scaled, y_train)
+        logging.info(
+            f"GridSearchCV: {total_combos} combos x {cv_folds} folds = "
+            f"{total_fits} fits, scoring={scoring}"
+        )
+        logging.info(
+            f"Training on {X_train_scaled.shape[0]} samples with "
+            f"{X_train_scaled.shape[1]} features — this may take several minutes"
+        )
+
+        # ------------------------------------------------------------------
+        # 4. Hyperparameter tuning via cross-validation
+        # ------------------------------------------------------------------
+        # GridSearchCV tries every combination in param_grid and picks the
+        # one with the best cross-validated score on the TRAINING set only.
+        #
+        # verbose=3 prints a line per fit so you can track progress.
+        # n_jobs=1 (sequential) ensures verbose output actually prints to terminal.
+        # Parallel mode (n_jobs=-1) is faster but swallows verbose output due to
+        # buffering in child processes, making it look like the training hangs.
+        grid_search = GridSearchCV(
+            estimator=model,
+            param_grid=param_grid,
+            scoring=scoring,
+            cv=cv_folds,
+            verbose=3,
+            n_jobs=1
+        )
+
+        grid_search.fit(X_train_scaled, y_train)
+
+        elapsed = time.time() - start_time
+        minutes, seconds = divmod(int(elapsed), 60)
+
+        best_model = grid_search.best_estimator_
+        best_score = grid_search.best_score_
+        best_params = grid_search.best_params_
+        used_grid_search = True
+
+        # Save grid search results for analysis
+        results_df = pd.DataFrame(grid_search.cv_results_)
+        results_df.to_csv(
+            os.path.join(reports_dir, 'grid_search_results.csv'),
+            index=False
+        )
+    else:
+        # Fast path: train directly with fixed hyperparameters.
+        logging.info("Training model directly without grid search")
+        best_model = model.fit(X_train_scaled, y_train)
+        best_score = None
+        best_params = model.get_params()
+        used_grid_search = False
 
     elapsed = time.time() - start_time
     minutes, seconds = divmod(int(elapsed), 60)
-
-    best_model = grid_search.best_estimator_
-    logging.info(f"GridSearchCV completed in {minutes}m {seconds}s")
-    logging.info(f"Best CV {scoring}: {grid_search.best_score_:.4f}")
-    logging.info(f"Best params: {grid_search.best_params_}")
-
-    # Save grid search results for analysis
-    reports_dir = os.path.join(config['paths']['reports'], model_name)
-    os.makedirs(reports_dir, exist_ok=True)
-    results_df = pd.DataFrame(grid_search.cv_results_)
-    results_df.to_csv(os.path.join(reports_dir, 'grid_search_results.csv'), index=False)
+    y_test_pred_prob = best_model.predict_proba(X_test_scaled)[:, 1]
+    test_roc_auc = roc_auc_score(y_test, y_test_pred_prob)
+    logging.info(f"Model trained in {minutes}m {seconds}s")
+    if used_grid_search:
+        logging.info(f"Best CV {scoring}: {best_score:.4f}")
+    logging.info(f"Test ROC-AUC: {test_roc_auc:.4f}")
+    logging.info(f"Best params: {best_params}")
 
     # ------------------------------------------------------------------
     # 5. Save the full artifact
@@ -164,8 +189,8 @@ def train(df, model_name=None):
         'numeric_features': numeric_cols,
         'categorical_features': categorical_cols,
         'feature_order': list(X_train.columns),
-        'best_params': grid_search.best_params_,
-        'best_score': grid_search.best_score_,
+        'best_params': best_params,
+        'best_score': best_score,
     }
 
     models_dir = config['paths']['models']

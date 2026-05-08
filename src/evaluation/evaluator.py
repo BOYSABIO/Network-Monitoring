@@ -116,13 +116,16 @@ def evaluate(artifact_path, X_test, y_test):
     os.makedirs(reports_dir, exist_ok=True)
 
     # Structured metrics as JSON for programmatic access
+    best_score = artifact.get('best_score')
     metrics = {
         'model_name': model_name,
         'accuracy': float(accuracy),
         'roc_auc': float(roc_auc),
         'confusion_matrix': cm.tolist(),
         'best_params': artifact.get('best_params', {}),
-        'best_cv_score': float(artifact.get('best_score', 0)),
+        'best_cv_score': (
+            float(best_score) if best_score is not None else None
+        ),
     }
 
     metrics_path = os.path.join(reports_dir, 'metrics.json')

@@ -1,0 +1,38 @@
+1. Generate flow_id at inference
+2. Decode the 1 hot encoded variables
+3. Derive ports from data:
+    service_dns: true → dst_port: 53
+    service_http: true → dst_port: 80
+    service_ssl: true → dst_port: 443
+    service_ssh: true → dst_port: 22
+    service_ftp: true → dst_port: 21
+4. Pass a known malicious IP for testing purposes
+
+For IPs, build a small fixture lookup table in your inference script — maybe 8-10 entries — that maps to realistic IPs 
+based on the prediction outcome. Pull actual known-malicious IPs from public threat feeds (AbuseIPDB top offenders, 
+Tor exit node lists, abuse.ch C2 tracker). Something like: high-confidence malicious DNS traffic gets assigned a 
+known DNS tunneling C2 IP, high-confidence malicious TCP gets a known botnet IP. Benign flows get 8.8.8.8, 1.1.1.1, etc.
+
+This way when the agent calls lookup_ip_reputation() it actually gets something back — "Tor exit node, 2,400 abuse 
+reports" — and can reason with it. Random IPs would mostly return nothing from AbuseIPDB and make for a boring demo.
+
+Clean output could look like this:
+{
+  "flow_id": "flow_20260509_001",
+  "timestamp": "2026-05-09T10:32:11Z",
+  "src_ip": "192.168.1.45",
+  "dst_ip": "8.8.8.8",
+  "src_port": 51234,
+  "dst_port": 53,
+  "proto": "udp",
+  "service": "dns",
+  "state": "CON",
+  "dur": 0.000009,
+  "sbytes": 114,
+  "dbytes": 0,
+  "rate": 111111.1,
+  "sttl": 254,
+  "prediction": 1,
+  "confidence": 0.9226,
+  "prediction_label": "malicious"
+}

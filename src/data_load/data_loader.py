@@ -1,10 +1,12 @@
 # Data Loader
 # -----------
 # Loads the raw CSV dataset into a pandas DataFrame.
-# This is the entry point of the training pipeline — raw data in, DataFrame out.
+# This is the entry point of the training pipeline
+# — raw data in, DataFrame out.
 
 import logging
 import pandas as pd
+from src.utils.logger import setup_logger
 
 
 def load_data(raw_data_path='data/01_Raw/rawdata.csv'):
@@ -33,7 +35,6 @@ def load_data(raw_data_path='data/01_Raw/rawdata.csv'):
 
 def main():
     """Standalone entry point for testing the loader."""
-    from src.utils.logger import setup_logger
     setup_logger()
     load_data()
 
