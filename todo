@@ -1,4 +1,4 @@
-1. Generate flow_id at inference
+1. Generate flow_id at inference (DONE)
 2. Decode the 1 hot encoded variables
 3. Derive ports from data:
     service_dns: true → dst_port: 53

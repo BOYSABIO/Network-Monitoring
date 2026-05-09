@@ -18,19 +18,25 @@ import pandas as pd
 
 from src.utils.logger import setup_logger
 from src.config.loader import get_config
+from src.inference.predictor import enrich_soc_event_v1
+from src.data_load.data_loader import load_data
+from src.data_validation.validator import data_validator
+from src.preprocess.preprocess import preprocess
+from src.model.trainer import train
+from src.evaluation.evaluator import evaluate
+from src.inference.predictor import predict, load_artifact
+from src.ingestion.pcap_to_features import ingest_live
+from src.ingestion.pcap_to_features import ingest_pcap
 
 
 def cmd_train(args):
-    """Train a model using the full pipeline: load -> validate -> preprocess -> train."""
-    from src.data_load.data_loader import load_data
-    from src.data_validation.validator import data_validator
-    from src.preprocess.preprocess import preprocess
-    from src.model.trainer import train
-
+    """
+    Train a model using the full pipeline: load -> validate -> preprocess -> train.
+    """
     config = get_config()
     model_name = args.model or config['model']['active']
 
-    logging.info(f"=== TRAINING PIPELINE: {model_name} ===")
+    logging.info("=== TRAINING PIPELINE: %s ===", model_name)
 
     # Step 1: Load raw data
     raw_path = args.data or config['paths']['raw_data']
@@ -47,7 +53,7 @@ def cmd_train(args):
     os.makedirs(processed_dir, exist_ok=True)
     processed_path = os.path.join(processed_dir, 'preprocessed.csv')
     df_processed.to_csv(processed_path, index=False)
-    logging.info(f"Preprocessed dataset saved to {processed_path}")
+    logging.info("Preprocessed dataset saved to %s", processed_path)
 
     # Step 4: Train model with GridSearchCV
     artifact = train(df_processed, model_name=model_name)
@@ -55,24 +61,23 @@ def cmd_train(args):
     best_score = artifact.get('best_score')
     score_text = f"{best_score:.4f}" if best_score is not None else "N/A (grid skipped)"
     logging.info(
-        f"=== TRAINING COMPLETE: {model_name} — "
-        f"Best CV score: {score_text} ==="
+        "=== TRAINING COMPLETE: %s — Best CV score: %s ===",
+        model_name, score_text
     )
 
 
 def cmd_evaluate(args):
     """Evaluate a trained model on test data."""
-    from src.evaluation.evaluator import evaluate
 
     config = get_config()
     model_name = args.model or config['model']['active']
-    artifact_path = os.path.join(config['paths']['models'], f'{model_name}.joblib')
+    artifact_path = os.path.join(config['paths']['models'], f"{model_name}.joblib")
 
     if not os.path.exists(artifact_path):
-        logging.error(f"No artifact found at {artifact_path}. Train the model first.")
+        logging.error("No artifact found at %s. Train the model first.", artifact_path)
         sys.exit(1)
 
-    logging.info(f"=== EVALUATION: {model_name} ===")
+    logging.info("=== EVALUATION: %s ===", model_name)
 
     # Load test data from the saved split
     enriched = config['paths']['enriched']
@@ -80,7 +85,7 @@ def cmd_evaluate(args):
     y_test_path = os.path.join(enriched, 'y_test.csv')
 
     if not os.path.exists(X_test_path):
-        logging.error(f"Test data not found at {X_test_path}. Train the model first.")
+        logging.error("Test data not found at %s. Train the model first.", X_test_path)
         sys.exit(1)
 
     X_test = pd.read_csv(X_test_path)
@@ -88,64 +93,73 @@ def cmd_evaluate(args):
 
     metrics = evaluate(artifact_path, X_test, y_test)
 
-    logging.info(f"=== EVALUATION COMPLETE: ROC-AUC={metrics['roc_auc']:.4f} ===")
+    logging.info("=== EVALUATION COMPLETE: ROC-AUC=%.4f ===", metrics['roc_auc'])
 
 
 def cmd_infer(args):
     """Run inference on a PCAP file or CSV file."""
-    from src.inference.predictor import predict
 
     config = get_config()
     input_path = args.input
 
     if not os.path.exists(input_path):
-        logging.error(f"Input file not found: {input_path}")
+        logging.error("Input file not found: %s", input_path)
         sys.exit(1)
 
     model_name = args.model or config['model']['active']
     artifact_path = os.path.join(config['paths']['models'], f'{model_name}.joblib')
     if not os.path.exists(artifact_path):
         logging.error(
-            f"No artifact at {artifact_path}. Train with --model {model_name} first."
+            "No artifact at %s. Train with --model %s first.",
+            artifact_path, model_name
         )
         sys.exit(1)
-    logging.info(f"=== INFERENCE: {input_path} (model={model_name}) ===")
+    logging.info("=== INFERENCE: %s (model=%s) ===", input_path, model_name)
 
     # Determine input type by extension
     if input_path.endswith('.pcap') or input_path.endswith('.pcapng'):
         # PCAP: run through Zeek first to extract features
-        from src.ingestion.pcap_to_features import ingest_pcap
         df = ingest_pcap(input_path)
     elif input_path.endswith('.csv'):
         # CSV: load directly (assumed to have the right columns)
         df = pd.read_csv(input_path)
     else:
-        logging.error(f"Unsupported file type: {input_path}. Use .pcap or .csv")
+        logging.error("Unsupported file type: %s. Use .pcap or .csv", input_path)
         sys.exit(1)
 
     # Run predictions
-    results = predict(df, artifact_path=artifact_path)
+    pred_out = predict(df, artifact_path=artifact_path)
+    results_model = pred_out['model_result']
+    results_export = pred_out['export_result']
+
+    source_type = "csv" if input_path.endswith('.csv') else "pcap"
+    soc_events = enrich_soc_event_v1(
+        results_export,
+        model_name=model_name,
+        source_type=source_type,
+        input_ref=input_path,
+        pipeline_version="v1"
+    )
 
     # Save results
     output_path = args.output or 'reports/inference_results.csv'
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
-    results.to_csv(output_path, index=False)
+    results_model.to_csv(output_path, index=False)
     logging.info(f"Results saved to {output_path}")
 
     # Save results to a NDJSON file
-    results.to_json("reports/inference_results.ndjson", orient="records", lines=True)
-    logging.info(f'Json file saved to reports/inference_results.ndjson')
+    output_ndjson = 'reports/inference_results.ndjson'
+    soc_events.to_json(output_ndjson, orient="records", lines=True)
+    logging.info(f"Json file saved to {output_ndjson}")
 
     # Print summary
-    n_malicious = (results['prediction'] == 1).sum()
-    n_total = len(results)
-    logging.info(f"=== INFERENCE COMPLETE: {n_malicious}/{n_total} flagged malicious ===")
+    n_malicious = (results_model['prediction'] == 1).sum()
+    n_total = len(results_model)
+    logging.info("=== INFERENCE COMPLETE: %d/%d flagged malicious ===", n_malicious, n_total)
 
 
 def cmd_live(args):
     """Live monitoring on a network interface."""
-    from src.inference.predictor import predict, load_artifact
-    from src.ingestion.pcap_to_features import ingest_live
 
     config = get_config()
 
@@ -166,8 +180,9 @@ def cmd_live(args):
 
     def on_new_connections(df):
         """Callback: classify each batch of new connections."""
-        results = predict(df, artifact=artifact)
-        malicious = results[results['prediction'] == 1]
+        pred_out = predict(df, artifact=artifact)
+        results_model = pred_out['model_result']
+        malicious = results_model[results_model['prediction'] == 1]
 
         if not malicious.empty:
             logging.warning(
