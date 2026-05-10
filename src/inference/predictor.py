@@ -94,7 +94,7 @@ def enrich_soc_event_v1(df, model_name, source_type, input_ref, pipeline_version
         out["timestamp"] = pd.Timestamp.utcnow().isoformat()
 
     # Risk + Severity
-    out["risk_score"] = (out["confidence"] * 100).round().astype(int)
+    out["confidence_percentage"] = (out["confidence"] * 100).round().astype(int)
     out["severity"] = np.where(
         out["prediction"] == 0,
         "low",

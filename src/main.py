@@ -145,7 +145,7 @@ def cmd_infer(args):
     output_path = args.output or 'reports/inference_results.csv'
     os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
     results_model.to_csv(output_path, index=False)
-    logging.info(f"Results saved to {output_path}")
+    logging.info("Results saved to %s", output_path)
 
     # Save results to a NDJSON file
     output_ndjson = 'reports/inference_results.ndjson'
