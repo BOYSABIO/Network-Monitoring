@@ -66,9 +66,7 @@ def evaluate(artifact_path, X_test, y_test):
         X_test[categorical_features].values
     ])
 
-    # ------------------------------------------------------------------
-    # 3. Generate predictions
-    # ------------------------------------------------------------------
+    # Generate predictions
     y_pred = model.predict(X_test_scaled)
 
     # predict_proba gives the model's confidence for each class.
@@ -77,9 +75,7 @@ def evaluate(artifact_path, X_test, y_test):
     # because AUC measures ranking quality across all thresholds.
     y_pred_prob = model.predict_proba(X_test_scaled)[:, 1]
 
-    # ------------------------------------------------------------------
-    # 4. Compute metrics
-    # ------------------------------------------------------------------
+    # Compute metrics
     accuracy = accuracy_score(y_test, y_pred)
 
     # ROC-AUC: use probabilities, NOT hard predictions.
@@ -98,17 +94,13 @@ def evaluate(artifact_path, X_test, y_test):
     # ROC curve coordinates for plotting
     fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob)
 
-    # ------------------------------------------------------------------
-    # 5. Log results
-    # ------------------------------------------------------------------
+    # Log results
     logging.info(f"Accuracy: {accuracy:.4f}")
     logging.info(f"ROC-AUC: {roc_auc:.4f}")
     logging.info(f"Confusion Matrix:\n{cm}")
     logging.info(f"Classification Report:\n{report_text}")
 
-    # ------------------------------------------------------------------
     # 6. Save reports to disk
-    # ------------------------------------------------------------------
     reports_dir = os.path.join(config['paths']['reports'], model_name)
     os.makedirs(reports_dir, exist_ok=True)
 
