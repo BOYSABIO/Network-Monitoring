@@ -1,4 +1,5 @@
-# Model Evaluator
+"""
+Model Evaluator
 # ---------------
 # Model-agnostic evaluation: takes a saved artifact and test data,
 # produces metrics and reports. Works with any sklearn-compatible model.
@@ -7,8 +8,8 @@
 #   - ROC-AUC: overall ranking quality (best single metric for imbalanced data)
 #   - Precision: of everything flagged malicious, how much actually was?
 #   - Recall: of all actual attacks, how many did we catch?
-#   - Confusion matrix: see FP/FN breakdown (FN = missed attack, FP = false alarm)
-
+#   - Confusion matrix: FP/FN breakdown (FN = missed attack, FP = false alarm)
+"""
 import logging
 import os
 import json
@@ -46,9 +47,7 @@ def evaluate(artifact_path, X_test, y_test):
     """
     config = get_config()
 
-    # ------------------------------------------------------------------
-    # 1. Load the artifact (model + scaler + feature metadata)
-    # ------------------------------------------------------------------
+    # Load the artifact (model + scaler + feature metadata)
     artifact = joblib.load(artifact_path)
     model = artifact['model']
     scaler = artifact['scaler']
@@ -56,11 +55,9 @@ def evaluate(artifact_path, X_test, y_test):
     categorical_features = artifact['categorical_features']
     model_name = artifact['model_name']
 
-    logging.info(f"Evaluating model: {model_name}")
+    logging.info("Evaluating model: %s", model_name)
 
-    # ------------------------------------------------------------------
-    # 2. Scale test data using the TRAINING scaler (no leakage)
-    # ------------------------------------------------------------------
+    # Scale test data using the TRAINING scaler (no leakage)
     # The scaler was fit on training data during trainer.py.
     # We only call .transform() here — never .fit_transform().
     X_test_scaled_num = scaler.transform(X_test[numeric_features])
@@ -95,7 +92,7 @@ def evaluate(artifact_path, X_test, y_test):
     report_text = classification_report(y_test, y_pred)
 
     # Confusion matrix: [[TN, FP], [FN, TP]]
-    # In security: FN (bottom-left) = missed attacks, FP (top-right) = false alarms
+    # FN (bottom-left) = missed attacks, FP (top-right) = false alarms
     cm = confusion_matrix(y_test, y_pred)
 
     # ROC curve coordinates for plotting

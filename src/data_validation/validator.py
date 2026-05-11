@@ -1,12 +1,11 @@
+"""
 # Check Schema, data types, ranges, anomolies
 # CHECK ONLY PHASE
-# Example: NAN -> Checks amount of NANs and if exceeds a certain amount, then flag
-
+# Example: NAN -> Checks amount of NANs and if exceeds a certain amount
+"""
 import logging
-import os
-import pandas as pd
-import numpy as np
 from src.data_load.data_loader import load_data
+
 
 def check_schema(df, expected_schema):
     """
@@ -20,12 +19,14 @@ def check_schema(df, expected_schema):
     missing = [col for col in expected_schema if col not in df.columns]
     if missing:
         issues["missing_columns"] = missing
-        logging.error(f"Schema check failed: Missing columns: {missing}")
+        logging.error("Schema check failed: Missing columns: %s", missing)
 
     extra = [col for col in df.columns if col not in expected_schema]
     if extra:
         issues["extra_columns"] = extra
-        logging.warning(f"Schema check warning: Extra unexpected columns found: {extra}")
+        logging.warning(
+            "Schema check warning: Extra unexpected columns found: %s", extra
+        )
 
     wrong_types = {}
     for col, expected_type in expected_schema.items():
@@ -41,8 +42,9 @@ def check_schema(df, expected_schema):
         issues["wrong_types"] = wrong_types
         for col, detail in wrong_types.items():
             logging.error(
-                f"Column '{col}' has wrong dtype "
-                f"(expected={detail['expected']}, actual={detail['actual']})"
+                "Column '%s' has wrong dtype "
+                "(expected=%s, actual=%s)",
+                col, detail['expected'], detail['actual']
             )
 
     if not issues:
@@ -135,15 +137,19 @@ def data_validator(df):
         # Check accuracy
         # Check consistency
         logging.info("Validating data after loading")
-        
         logging.info("Data validated successfully")
     except Exception as e:
-        logging.error(f"Error validating data: {e}")
+        logging.error("Error validating data: %s", e)
         raise e
 
+
 def main():
+    """
+    Main function to validate the data
+    """
     df = load_data()
     data_validator(df)
+
 
 if __name__ == "__main__":
     main()

@@ -1,9 +1,10 @@
-# Data Loader
+"""
+Data Loader
 # -----------
 # Loads the raw CSV dataset into a pandas DataFrame.
 # This is the entry point of the training pipeline
 # — raw data in, DataFrame out.
-
+"""
 import logging
 import pandas as pd
 from src.utils.logger import setup_logger
@@ -24,12 +25,14 @@ def load_data(raw_data_path='data/01_Raw/rawdata.csv'):
         The raw dataset, unmodified.
     """
     try:
-        logging.info(f"Loading data from {raw_data_path}")
+        logging.info("Loading data from %s", raw_data_path)
         df = pd.read_csv(raw_data_path)
-        logging.info(f"Data loaded: {df.shape[0]} rows, {df.shape[1]} columns")
+        logging.info(
+            "Data loaded: %d rows, %d columns", df.shape[0], df.shape[1]
+        )
         return df
     except Exception as e:
-        logging.error(f"Failed to load data: {e}")
+        logging.error("Failed to load data: %s", e)
         raise
 
 
