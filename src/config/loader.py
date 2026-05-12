@@ -4,8 +4,8 @@
 # Every module imports config from here instead of hardcoding values.
 
 import os
-import yaml
 import logging
+import yaml
 
 # Path to config.yaml — resolved relative to this file's location
 _CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))

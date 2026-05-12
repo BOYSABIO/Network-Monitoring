@@ -1,14 +1,16 @@
-# CLI Orchestrator
-# ----------------
-# Single entry point for the entire pipeline. Uses argparse subcommands:
-#
-#   python -m src.main train       --model logistic_regression
-#   python -m src.main evaluate    --model logistic_regression
-#   python -m src.main infer       --input capture.pcap [--model NAME]
-#   python -m src.main live        --interface eth0 [--model NAME]
-#   python -m src.main ols         (run OLS feature analysis)
-#
-# Each subcommand wires together the appropriate modules.
+"""
+CLI Orchestrator
+----------------
+Single entry point for the entire pipeline. Uses argparse subcommands:
+
+  python -m src.main train       --model logistic_regression
+  python -m src.main evaluate    --model logistic_regression
+  python -m src.main infer       --input capture.pcap [--model NAME]
+  python -m src.main live        --interface eth0 [--model NAME]
+  python -m src.main ols         (run OLS feature analysis)
+
+Each subcommand wires together the appropriate modules.
+"""
 
 import argparse
 import logging
@@ -27,6 +29,8 @@ from src.evaluation.evaluator import evaluate
 from src.inference.predictor import predict, load_artifact
 from src.ingestion.pcap_to_features import ingest_live
 from src.ingestion.pcap_to_features import ingest_pcap
+from src.utils.ols_analysis import run_ols_analysis
+from sklearn.model_selection import train_test_split
 
 
 def cmd_train(args):
@@ -150,7 +154,7 @@ def cmd_infer(args):
     # Save results to a NDJSON file
     output_ndjson = 'reports/inference_results.ndjson'
     soc_events.to_json(output_ndjson, orient="records", lines=True)
-    logging.info(f"Json file saved to {output_ndjson}")
+    logging.info("Json file saved to %s", output_ndjson)
 
     # Print summary
     n_malicious = (results_model['prediction'] == 1).sum()
@@ -167,12 +171,14 @@ def cmd_live(args):
     artifact_path = os.path.join(config['paths']['models'], f'{model_name}.joblib')
     if not os.path.exists(artifact_path):
         logging.error(
-            f"No artifact at {artifact_path}. Train with --model {model_name} first."
+            "No artifact at %s. Train with --model %s first.",
+            artifact_path, model_name
         )
         sys.exit(1)
 
     logging.info(
-        f"=== LIVE MONITORING: {args.interface} (model={model_name}) ==="
+        "=== LIVE MONITORING: %s (model=%s) ===",
+        args.interface, model_name
     )
 
     # Pre-load the model artifact once (avoid reloading per batch)
@@ -186,7 +192,8 @@ def cmd_live(args):
 
         if not malicious.empty:
             logging.warning(
-                f"ALERT: {len(malicious)} malicious connections in latest batch"
+                "ALERT: %s malicious connections in latest batch",
+                len(malicious)
             )
             # Could extend this to: send email, push to SIEM, write to DB, etc.
 
@@ -201,10 +208,6 @@ def cmd_live(args):
 
 def cmd_ols(args):
     """Run OLS feature significance analysis (diagnostic, not training)."""
-    from src.data_load.data_loader import load_data
-    from src.preprocess.preprocess import preprocess
-    from src.utils.ols_analysis import run_ols_analysis
-    from sklearn.model_selection import train_test_split
 
     config = get_config()
 
@@ -232,6 +235,7 @@ def cmd_ols(args):
 
 
 def main():
+    """Main entry point for the pipeline."""
     parser = argparse.ArgumentParser(
         description='Network Monitoring MLOps Pipeline',
         formatter_class=argparse.RawDescriptionHelpFormatter,
