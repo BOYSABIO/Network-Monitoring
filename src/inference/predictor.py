@@ -116,12 +116,6 @@ def enrich_soc_event_v1(df, model_name, source_type, input_ref, pipeline_version
     out["likely_dst_port"] = out["service"].map(service_to_port).astype("Int64")
     out["dst_port_inferred"] = out["dst_port"].isna() & out["likely_dst_port"].notna()
 
-    # Optional placeholders for SOC agent
-    if "reason_codes" not in out.columns:
-        out["reason_codes"] = [[] for _ in range(len(out))]
-    if "recommended_actions" not in out.columns:
-        out["recommended_actions"] = [[] for _ in range(len(out))]
-
     return out
 
 
