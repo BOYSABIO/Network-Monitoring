@@ -25,9 +25,10 @@ from sklearn.metrics import (
 )
 
 from src.config.loader import get_config
+from src.utils.wandb_tracker import log_evaluation_run
 
 
-def evaluate(artifact_path, X_test, y_test):
+def evaluate(artifact_path, x_test, y_test):
     """
     Evaluate a trained model on held-out test data.
 
@@ -35,7 +36,7 @@ def evaluate(artifact_path, X_test, y_test):
     ----------
     artifact_path : str
         Path to the .joblib artifact saved by trainer.py.
-    X_test : pd.DataFrame
+    x_test : pd.DataFrame
         Test features (not yet scaled — the artifact's scaler is applied here).
     y_test : pd.Series
         True test labels.
@@ -60,20 +61,20 @@ def evaluate(artifact_path, X_test, y_test):
     # Scale test data using the TRAINING scaler (no leakage)
     # The scaler was fit on training data during trainer.py.
     # We only call .transform() here — never .fit_transform().
-    X_test_scaled_num = scaler.transform(X_test[numeric_features])
-    X_test_scaled = np.hstack([
-        X_test_scaled_num,
-        X_test[categorical_features].values
+    x_test_scaled_num = scaler.transform(x_test[numeric_features])
+    x_test_scaled = np.hstack([
+        x_test_scaled_num,
+        x_test[categorical_features].values
     ])
 
     # Generate predictions
-    y_pred = model.predict(X_test_scaled)
+    y_pred = model.predict(x_test_scaled)
 
     # predict_proba gives the model's confidence for each class.
     # [:, 1] = probability of class 1 (malicious).
     # We need probabilities (not hard 0/1 predictions) for ROC-AUC,
     # because AUC measures ranking quality across all thresholds.
-    y_pred_prob = model.predict_proba(X_test_scaled)[:, 1]
+    y_pred_prob = model.predict_proba(x_test_scaled)[:, 1]
 
     # Compute metrics
     accuracy = accuracy_score(y_test, y_pred)
@@ -95,10 +96,10 @@ def evaluate(artifact_path, X_test, y_test):
     fpr, tpr, thresholds = roc_curve(y_test, y_pred_prob)
 
     # Log results
-    logging.info(f"Accuracy: {accuracy:.4f}")
-    logging.info(f"ROC-AUC: {roc_auc:.4f}")
-    logging.info(f"Confusion Matrix:\n{cm}")
-    logging.info(f"Classification Report:\n{report_text}")
+    logging.info("Accuracy: %.4f", accuracy)
+    logging.info("ROC-AUC: %.4f", roc_auc)
+    logging.info("Confusion Matrix:\n%s", cm)
+    logging.info("Classification Report:\n%s", report_text)
 
     # 6. Save reports to disk
     reports_dir = os.path.join(config['paths']['reports'], model_name)
@@ -118,9 +119,9 @@ def evaluate(artifact_path, X_test, y_test):
     }
 
     metrics_path = os.path.join(reports_dir, 'metrics.json')
-    with open(metrics_path, 'w') as f:
+    with open(metrics_path, 'w', encoding='utf-8') as f:
         json.dump(metrics, f, indent=2)
-    logging.info(f"Metrics saved to {metrics_path}")
+    logging.info("Metrics saved to %s", metrics_path)
 
     # Classification report as CSV
     report_df = pd.DataFrame(report).transpose()
@@ -130,6 +131,19 @@ def evaluate(artifact_path, X_test, y_test):
     roc_df = pd.DataFrame({'fpr': fpr, 'tpr': tpr, 'threshold': thresholds})
     roc_df.to_csv(os.path.join(reports_dir, 'roc_curve.csv'), index=False)
 
-    logging.info(f"All reports saved to {reports_dir}")
+    logging.info("All reports saved to %s", reports_dir)
+
+    try:
+        log_evaluation_run(
+            model_name=model_name,
+            metrics={
+                "accuracy": metrics["accuracy"],
+                "roc_auc": metrics["roc_auc"],
+                "best_cv_score": metrics.get("best_cv_score"),
+            },
+            artifact_path=artifact_path,
+        )
+    except ImportError:
+        pass
 
     return metrics

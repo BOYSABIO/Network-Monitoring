@@ -1,3 +1,4 @@
+"""
 # Model Registry
 # --------------
 # A simple decorator-based registry that lets you plug in any
@@ -9,6 +10,10 @@
 #   1. Write a builder function below
 #   2. Decorate it with @register("your_model_name")
 #   3. Set model.active in config.yaml to "your_model_name"
+"""
+
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 
 REGISTRY = {}
 
@@ -67,7 +72,6 @@ def build_logistic_regression():
     - Required for elastic net penalty
     - Efficient on large datasets
     """
-    from sklearn.linear_model import LogisticRegression
 
     model = LogisticRegression(
         penalty='elasticnet',
@@ -92,7 +96,6 @@ def build_logistic_regression_fast():
     """
     Logistic Regression without grid search.
     """
-    from sklearn.linear_model import LogisticRegression
     model = LogisticRegression(
         penalty='elasticnet',
         solver='saga',
@@ -116,7 +119,6 @@ def build_random_forest():
     - Robust to outliers and doesn't require feature scaling
     - Good baseline for comparison against linear models
     """
-    from sklearn.ensemble import RandomForestClassifier
 
     model = RandomForestClassifier(
         random_state=42,

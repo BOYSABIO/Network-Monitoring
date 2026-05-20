@@ -14,6 +14,18 @@ paths:
   logs: logs/
   zeek_logs: data/zeek_logs/
 
+# --- Weights & Biases experiment tracking ---
+# Set enabled: true and run: wandb login (or export WANDB_API_KEY)
+wandb:
+  enabled: true
+  project: network-monitoring
+  entity: null          # optional W&B username or team
+  tags:
+    - nids
+    - binary-classification
+  log_artifact: true    # upload .joblib model artifact
+  log_grid_search: true # upload grid_search_results.csv when present
+
 # --- Model training settings ---
 model:
   # Which model to train/evaluate — must match a key in the registry
@@ -30,7 +42,7 @@ zeek:
 
 # --- Feature definitions ---
 # These lists are the single source of truth used by preprocessing,
-# feature engineering, training, and inference.
+# training, and inference.
 features:
   target: label
 
@@ -89,7 +101,8 @@ features:
     - state_INT
 
 # --- Raw data expected schema ---
-# Used by the data validator to check incoming data quality.
+# Single source of truth for raw CSV columns and dtypes.
+# Used by data validation and preprocessing (via get_expected_schema()).
 # Maps column name -> expected pandas dtype string.
 schema:
   id: int64

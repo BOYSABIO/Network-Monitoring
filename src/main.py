@@ -17,6 +17,7 @@ import logging
 import os
 import sys
 import pandas as pd
+from sklearn.model_selection import train_test_split
 
 from src.utils.logger import setup_logger
 from src.config.loader import get_config
@@ -30,7 +31,6 @@ from src.inference.predictor import predict, load_artifact
 from src.ingestion.pcap_to_features import ingest_live
 from src.ingestion.pcap_to_features import ingest_pcap
 from src.utils.ols_analysis import run_ols_analysis
-from sklearn.model_selection import train_test_split
 
 
 def cmd_train(args):
@@ -85,17 +85,17 @@ def cmd_evaluate(args):
 
     # Load test data from the saved split
     enriched = config['paths']['enriched']
-    X_test_path = os.path.join(enriched, 'X_test.csv')
+    x_test_path = os.path.join(enriched, 'X_test.csv')
     y_test_path = os.path.join(enriched, 'y_test.csv')
 
-    if not os.path.exists(X_test_path):
-        logging.error("Test data not found at %s. Train the model first.", X_test_path)
+    if not os.path.exists(x_test_path):
+        logging.error("Test data not found at %s. Train the model first.", x_test_path)
         sys.exit(1)
 
-    X_test = pd.read_csv(X_test_path)
+    x_test = pd.read_csv(x_test_path)
     y_test = pd.read_csv(y_test_path).squeeze()
 
-    metrics = evaluate(artifact_path, X_test, y_test)
+    metrics = evaluate(artifact_path, x_test, y_test)
 
     logging.info("=== EVALUATION COMPLETE: ROC-AUC=%.4f ===", metrics['roc_auc'])
 
@@ -220,16 +220,16 @@ def cmd_ols(args):
 
     # Split (only use training data for OLS — no leakage)
     target = config['features']['target']
-    X = df_processed.drop(columns=target)
+    x = df_processed.drop(columns=target)
     y = df_processed[target]
-    X_train, _, y_train, _ = train_test_split(
-        X, y,
+    x_train, _, y_train, _ = train_test_split(
+        x, y,
         test_size=config['model']['test_size'],
         random_state=config['model']['random_state']
     )
 
     report_dir = args.output or os.path.join(config['paths']['reports'], 'ols')
-    run_ols_analysis(X_train, y_train, report_dir=report_dir)
+    run_ols_analysis(x_train, y_train, report_dir=report_dir)
 
     logging.info("=== OLS ANALYSIS COMPLETE ===")
 
@@ -270,7 +270,8 @@ Examples:
     p_infer.add_argument('--output', type=str, default=None,
                          help='Path for results CSV (default: reports/inference_results.csv)')
     p_infer.add_argument('--model', type=str, default=None,
-                         help='Trained model name (artifact models/<name>.joblib; default: config active)')
+                         help=('Trained model name (artifact models/<name>.joblib; '
+                               'default: config active)'))
 
     # --- live ---
     p_live = subparsers.add_parser('live', help='Live monitoring on a network interface')
@@ -279,7 +280,8 @@ Examples:
     p_live.add_argument('--duration', type=int, default=None,
                         help='Stop after N seconds (default: run until Ctrl+C)')
     p_live.add_argument('--model', type=str, default=None,
-                        help='Trained model name (artifact models/<name>.joblib; default: config active)')
+                        help=('Trained model name (artifact models/<name>.joblib; '
+                              'default: config active)'))
 
     # --- ols ---
     p_ols = subparsers.add_parser('ols', help='Run OLS feature significance analysis')

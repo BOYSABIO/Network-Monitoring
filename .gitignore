@@ -8,7 +8,15 @@
 # Hide Logs
 logs/
 
+# W&B local run cache
+wandb/
+
 __pycache__/
 
 # Personal notes
 .notes.md
+
+# Settings
+.vscode/
+
+.env*

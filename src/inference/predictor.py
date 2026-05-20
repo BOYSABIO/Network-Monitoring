@@ -1,3 +1,4 @@
+"""
 # Inference / Predictor Module
 # ----------------------------
 # Loads a trained model artifact and classifies new network connections
@@ -11,6 +12,8 @@
 # preprocessing. If the training pipeline scaled, encoded, and ordered
 # features a certain way, inference must do the same — otherwise the model
 # sees garbage inputs and produces meaningless predictions.
+"""
+
 
 import logging
 import os
@@ -19,8 +22,6 @@ import numpy as np
 import pandas as pd
 
 from src.config.loader import get_config
-from src.preprocess.preprocess import preprocess
-
 
 def load_artifact(artifact_path=None):
     """
@@ -41,9 +42,9 @@ def load_artifact(artifact_path=None):
         model_name = config['model']['active']
         artifact_path = os.path.join(config['paths']['models'], f'{model_name}.joblib')
 
-    logging.info(f"Loading artifact from {artifact_path}")
+    logging.info("Loading artifact from %s", artifact_path)
     artifact = joblib.load(artifact_path)
-    logging.info(f"Loaded model: {artifact['model_name']}")
+    logging.info("Loaded model: %s", artifact['model_name'])
     return artifact
 
 
@@ -61,13 +62,13 @@ def decode_one_hot_categories(df, categorical_columns, drop_dummies):
         if "_" in d:
             k, v = d.split("_", 1)
             baseline[k] = v
-    
+
     for cat in categorical_columns:
         prefix = f"{cat}_"
         one_hot_cols = [c for c in out.columns if c.startswith(prefix)]
         if not one_hot_cols:
-            continue 
-        
+            continue
+
         # Which one-hot won?
         winners = out[one_hot_cols].idxmax(axis=1).str.replace(prefix, "", regex=False)
 
@@ -81,6 +82,9 @@ def decode_one_hot_categories(df, categorical_columns, drop_dummies):
     return out
 
 def enrich_soc_event_v1(df, model_name, source_type, input_ref, pipeline_version="v1"):
+    '''
+    Enrich the social event with additional metadata
+    '''
     out = df.copy()
 
     # Contract metadata
@@ -88,7 +92,7 @@ def enrich_soc_event_v1(df, model_name, source_type, input_ref, pipeline_version
     out["pipeline_version"] = pipeline_version
     out["source_type"] = source_type
     out["input_ref"] = input_ref
-    out["model_name"] = model_name 
+    out["model_name"] = model_name
 
     if "timestamp" not in out.columns:
         out["timestamp"] = pd.Timestamp.utcnow().isoformat()
@@ -148,10 +152,9 @@ def predict(df, artifact=None, artifact_path=None):
     model = artifact['model']
     scaler = artifact['scaler']
     numeric_features = artifact['numeric_features']
-    categorical_features = artifact['categorical_features']
     feature_order = artifact['feature_order']
 
-    logging.info(f"Running inference on {len(df)} connections")
+    logging.info("Running inference on %d connections", len(df))
 
 
     # Capture Flow ID / ID to be added back after
@@ -221,14 +224,14 @@ def predict(df, artifact=None, artifact_path=None):
     numeric_cols = [c for c in numeric_features if c in df_aligned.columns]
     cat_cols = [c for c in df_aligned.columns if c not in numeric_features]
 
-    X_scaled_num = scaler.transform(df_aligned[numeric_cols])
-    X_scaled = np.hstack([X_scaled_num, df_aligned[cat_cols].values])
+    x_scaled_num = scaler.transform(df_aligned[numeric_cols])
+    x_scaled = np.hstack([x_scaled_num, df_aligned[cat_cols].values])
 
     # ------------------------------------------------------------------
     # 4. Predict
     # ------------------------------------------------------------------
-    predictions = model.predict(X_scaled)
-    probabilities = model.predict_proba(X_scaled)
+    predictions = model.predict(x_scaled)
+    probabilities = model.predict_proba(x_scaled)
 
     # Confidence = probability of the predicted class
     confidence = np.max(probabilities, axis=1)
@@ -252,12 +255,15 @@ def predict(df, artifact=None, artifact_path=None):
     n_malicious = (predictions == 1).sum()
     n_benign = (predictions == 0).sum()
     logging.info(
-        f"Predictions: {n_malicious} malicious, {n_benign} benign "
-        f"(avg confidence: {confidence.mean():.3f})"
+        "Predictions: %d malicious, %d benign (avg confidence: %.3f)",
+        n_malicious, n_benign, confidence.mean()
     )
 
     if n_malicious > 0:
-        logging.warning(f"ALERT: {n_malicious} potentially malicious connections detected")
+        logging.warning(
+            "ALERT: %d potentially malicious connections detected",
+            n_malicious
+        )
 
     return {
         "model_result": result,

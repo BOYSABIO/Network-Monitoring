@@ -1,3 +1,4 @@
+"""
 # Generic Model Trainer
 # ---------------------
 # Model-agnostic training pipeline that works with any model registered
@@ -7,7 +8,9 @@
 # The key idea: the trainer doesn't know or care whether it's training
 # logistic regression or random forest. It gets the model and param_grid
 # from the registry, and everything else is the same.
+"""
 
+import time
 import logging
 import os
 import joblib
@@ -19,6 +22,7 @@ from sklearn.metrics import roc_auc_score
 
 from src.model.registry import get_model
 from src.config.loader import get_config
+from src.utils.wandb_tracker import log_training_run
 
 
 def train(df, model_name=None):
@@ -47,7 +51,7 @@ def train(df, model_name=None):
     scoring = config['model']['scoring']
     numeric_features = config['features']['numeric']
 
-    logging.info(f"Starting training pipeline for model: {model_name}")
+    logging.info("Starting training pipeline for model: %s", model_name)
 
     # ------------------------------------------------------------------
     # 1. Split into train and test sets
@@ -55,49 +59,55 @@ def train(df, model_name=None):
     # Stratify on the label so both sets have the same malicious/benign ratio.
     # This matters in security data where class imbalance is common.
     target = config['features']['target']
-    X = df.drop(columns=target)
+    x = df.drop(columns=target)
     y = df[target]
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y,
+    x_train, x_test, y_train, y_test = train_test_split(
+        x, y,
         test_size=test_size,
         random_state=random_state,
         stratify=y  # preserve class balance in both splits
     )
     logging.info(
-        f"Train/test split: {X_train.shape[0]} train, "
-        f"{X_test.shape[0]} test, {X_train.shape[1]} features"
+        "Train/test split: %d train, %d test, %d features",
+        x_train.shape[0],
+        x_test.shape[0],
+        x_train.shape[1],
     )
 
     # Save split data for reproducibility
     enriched_dir = config['paths']['enriched']
     os.makedirs(enriched_dir, exist_ok=True)
-    X_train.to_csv(os.path.join(enriched_dir, 'X_train.csv'), index=False)
-    X_test.to_csv(os.path.join(enriched_dir, 'X_test.csv'), index=False)
+    x_train.to_csv(os.path.join(enriched_dir, 'X_train.csv'), index=False)
+    x_test.to_csv(os.path.join(enriched_dir, 'X_test.csv'), index=False)
     y_train.to_csv(os.path.join(enriched_dir, 'y_train.csv'), index=False)
     y_test.to_csv(os.path.join(enriched_dir, 'y_test.csv'), index=False)
-    logging.info(f"Split data saved to {enriched_dir}")
+    logging.info("Split data saved to %s", enriched_dir)
 
     # ------------------------------------------------------------------
     # 2. Scale numeric features
     # ------------------------------------------------------------------
     # Identify which columns in the encoded DataFrame are numeric
     # (some original numeric features remain, categorical ones are now dummies)
-    numeric_cols = [c for c in X_train.columns if c in numeric_features]
+    numeric_cols = [c for c in x_train.columns if c in numeric_features]
     categorical_cols = [
-        c for c in X_train.columns if c not in numeric_features
+        c for c in x_train.columns if c not in numeric_features
         ]
 
     # fit ONLY on train to prevent data leakage
     scaler = StandardScaler()
-    X_train_scaled_num = scaler.fit_transform(X_train[numeric_cols])
-    X_test_scaled_num = scaler.transform(X_test[numeric_cols])
+    x_train_scaled_num = scaler.fit_transform(x_train[numeric_cols])
+    x_test_scaled_num = scaler.transform(x_test[numeric_cols])
 
     # Recombine: scaled numerics + untouched dummy columns
-    X_train_scaled = np.hstack([X_train_scaled_num, X_train[categorical_cols].values])
-    X_test_scaled = np.hstack([X_test_scaled_num, X_test[categorical_cols].values])
+    x_train_scaled = np.hstack([x_train_scaled_num, x_train[categorical_cols].values])
+    x_test_scaled = np.hstack([x_test_scaled_num, x_test[categorical_cols].values])
 
-    logging.info(f"Scaled {len(numeric_cols)} numeric features, kept {len(categorical_cols)} dummy features")
+    logging.info(
+        "Scaled %d numeric features, kept %d dummy features",
+        len(numeric_cols),
+        len(categorical_cols),
+    )
 
     # ------------------------------------------------------------------
     # 3. Get model and hyperparameter grid from registry
@@ -106,7 +116,6 @@ def train(df, model_name=None):
     reports_dir = os.path.join(config['paths']['reports'], model_name)
     os.makedirs(reports_dir, exist_ok=True)
 
-    import time
     start_time = time.time()
 
     if param_grid:
@@ -116,12 +125,16 @@ def train(df, model_name=None):
         total_fits = total_combos * cv_folds
 
         logging.info(
-            f"GridSearchCV: {total_combos} combos x {cv_folds} folds = "
-            f"{total_fits} fits, scoring={scoring}"
+            "GridSearchCV: %d combos x %d folds = %d fits, scoring=%s",
+            total_combos,
+            cv_folds,
+            total_fits,
+            scoring,
         )
         logging.info(
-            f"Training on {X_train_scaled.shape[0]} samples with "
-            f"{X_train_scaled.shape[1]} features — this may take several minutes"
+            "Training on %d samples with %d features — this may take several minutes",
+            x_train_scaled.shape[0],
+            x_train_scaled.shape[1],
         )
 
         # ------------------------------------------------------------------
@@ -143,7 +156,7 @@ def train(df, model_name=None):
             n_jobs=1
         )
 
-        grid_search.fit(X_train_scaled, y_train)
+        grid_search.fit(x_train_scaled, y_train)
 
         elapsed = time.time() - start_time
         minutes, seconds = divmod(int(elapsed), 60)
@@ -162,20 +175,20 @@ def train(df, model_name=None):
     else:
         # Fast path: train directly with fixed hyperparameters.
         logging.info("Training model directly without grid search")
-        best_model = model.fit(X_train_scaled, y_train)
+        best_model = model.fit(x_train_scaled, y_train)
         best_score = None
         best_params = model.get_params()
         used_grid_search = False
 
     elapsed = time.time() - start_time
     minutes, seconds = divmod(int(elapsed), 60)
-    y_test_pred_prob = best_model.predict_proba(X_test_scaled)[:, 1]
+    y_test_pred_prob = best_model.predict_proba(x_test_scaled)[:, 1]
     test_roc_auc = roc_auc_score(y_test, y_test_pred_prob)
-    logging.info(f"Model trained in {minutes}m {seconds}s")
+    logging.info("Model trained in %dm %ds", minutes, seconds)
     if used_grid_search:
-        logging.info(f"Best CV {scoring}: {best_score:.4f}")
-    logging.info(f"Test ROC-AUC: {test_roc_auc:.4f}")
-    logging.info(f"Best params: {best_params}")
+        logging.info("Best CV %s: %.4f", scoring, best_score)
+    logging.info("Test ROC-AUC: %.4f", test_roc_auc)
+    logging.info("Best params: %s", best_params)
 
     # ------------------------------------------------------------------
     # 5. Save the full artifact
@@ -188,7 +201,7 @@ def train(df, model_name=None):
         'model_name': model_name,
         'numeric_features': numeric_cols,
         'categorical_features': categorical_cols,
-        'feature_order': list(X_train.columns),
+        'feature_order': list(x_train.columns),
         'best_params': best_params,
         'best_score': best_score,
     }
@@ -197,6 +210,25 @@ def train(df, model_name=None):
     os.makedirs(models_dir, exist_ok=True)
     artifact_path = os.path.join(models_dir, f'{model_name}.joblib')
     joblib.dump(artifact, artifact_path)
-    logging.info(f"Artifact saved to {artifact_path}")
+    logging.info("Artifact saved to %s", artifact_path)
+
+    try:
+        log_training_run(
+            model_name=model_name,
+            metrics={
+                "best_cv_score": best_score,
+                "test_roc_auc": test_roc_auc,
+                "train_time_sec": elapsed,
+                "train_samples": x_train.shape[0],
+                "test_samples": x_test.shape[0],
+                "n_features": x_train.shape[1],
+            },
+            artifact_path=artifact_path,
+            best_params=best_params,
+            reports_dir=reports_dir,
+            used_grid_search=used_grid_search,
+        )
+    except ImportError:
+        pass
 
     return artifact
