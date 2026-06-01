@@ -142,6 +142,7 @@ def evaluate(artifact_path, x_test, y_test):
                 "best_cv_score": metrics.get("best_cv_score"),
             },
             artifact_path=artifact_path,
+            wandb_run_id=artifact.get("wandb_run_id"),
         )
     except ImportError:
         pass
