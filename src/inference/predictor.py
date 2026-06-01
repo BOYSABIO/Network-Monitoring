@@ -23,6 +23,7 @@ import pandas as pd
 
 from src.config.loader import get_config
 
+
 def load_artifact(artifact_path=None):
     """
     Load a saved model artifact from disk.
@@ -30,7 +31,7 @@ def load_artifact(artifact_path=None):
     Parameters
     ----------
     artifact_path : str, optional
-        Path to .joblib file. If None, loads the active model from config.
+        Path to .joblib file. If None, loads model.active from config.
 
     Returns
     -------
@@ -136,7 +137,7 @@ def predict(df, artifact=None, artifact_path=None):
         Pre-loaded artifact. If None, loads from artifact_path.
     artifact_path : str, optional
         Path to .joblib artifact. If both artifact and artifact_path are
-        None, loads the active model from config.
+        None, loads model.active from config.
 
     Returns
     -------

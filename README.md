@@ -24,6 +24,8 @@ The ML pipeline in `src/` started as a focused **network intrusion detection** p
 - **Observability:** Drift monitoring, data quality checks; synthetic traffic load
 - **Security:** Threat model, dependency scanning, safe configs
 
+**Benchmark results (June 2026):** Three classifiers compared on held-out flow data — **RF baseline** ~95.1% accuracy / 0.992 ROC-AUC (production default in `config.yaml`), XGBoost fastest at ~5.6s train time. Full write-up: [docs/experiments/2026-06-classifier-benchmark.md](docs/experiments/2026-06-classifier-benchmark.md). [W&B project](https://wandb.ai/models-ie-university/network-monitoring).
+
 ---
 
 ## Project Goals
@@ -113,11 +115,10 @@ Experiment tracking and model artifacts are supported via [Weights & Biases](htt
 wandb:
   enabled: true
   project: network-monitoring
+  entity: models-ie-university
 ```
 
-Run names are set automatically from the model you pass on the CLI, e.g. `logistic_regression-train` and `random_forest-evaluate`.
-
-Training logs metrics (CV score, test ROC-AUC, timing, sample counts), uploads the `.joblib` artifact, and optionally `grid_search_results.csv`. Evaluation logs accuracy and ROC-AUC under a separate run tagged `evaluation`.
+Run names are set automatically from the model you pass on the CLI, e.g. `logistic_regression-train` and `random_forest-evaluate`. Training logs metrics (CV score, test ROC-AUC, timing, sample counts), uploads the `.joblib` artifact, and optionally `grid_search_results.csv`. Evaluation resumes the training run when possible and logs accuracy and ROC-AUC.
 
 ### Train a model
 

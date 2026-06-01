@@ -24,7 +24,6 @@ def _wandb_settings() -> dict[str, Any] | None:
 
 
 def _build_run_name(model_name: str, job_type: str) -> str:
-    """W&B run name from the model key and pipeline step (e.g. logistic_regression-train)."""
     return f"{model_name}-{job_type}"
 
 
@@ -40,6 +39,17 @@ def _import_wandb():
     return wandb
 
 
+def _init_kwargs(settings: dict[str, Any], **overrides: Any) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "project": settings.get("project", "network-monitoring"),
+    }
+    entity = settings.get("entity")
+    if entity and str(entity).lower() != "null":
+        kwargs["entity"] = str(entity)
+    kwargs.update(overrides)
+    return kwargs
+
+
 def log_training_run(
     *,
     model_name: str,
@@ -48,11 +58,11 @@ def log_training_run(
     best_params: dict[str, Any] | None = None,
     reports_dir: str | None = None,
     used_grid_search: bool = False,
-) -> str | None:
+) -> dict[str, str] | None:
     """
     Log a training run: hyperparameters, metrics, model artifact, optional reports.
 
-    Returns the W&B run URL when logging succeeds, else None.
+    Returns ``{"run_id", "run_url"}`` when logging succeeds, else None.
     """
     settings = _wandb_settings()
     if settings is None:
@@ -79,13 +89,13 @@ def log_training_run(
         tags.append(model_name)
 
     run = wandb.init(
-        project=settings.get("project", "network-monitoring"),
-        entity=settings.get("entity"),
-        name=_build_run_name(model_name, "train"),
-        job_type="train",
-        tags=tags,
-        config=run_config,
-        reinit=True,
+        **_init_kwargs(
+            settings,
+            name=_build_run_name(model_name, "train"),
+            job_type="train",
+            tags=tags,
+            config=run_config,
+        )
     )
 
     log_metrics = {k: v for k, v in metrics.items() if v is not None}
@@ -97,10 +107,7 @@ def log_training_run(
             name=f"{model_name}-model",
             type="model",
             description=f"Trained {model_name} pipeline artifact (joblib)",
-            metadata={
-                "model_name": model_name,
-                "best_params": best_params,
-            },
+            metadata={"model_name": model_name, "best_params": best_params},
         )
         model_artifact.add_file(artifact_path, name=os.path.basename(artifact_path))
         run.log_artifact(model_artifact)
@@ -117,10 +124,11 @@ def log_training_run(
             table_artifact.add_file(grid_path)
             run.log_artifact(table_artifact)
 
+    run_id = run.id
     run_url = run.url
     run.finish()
     logging.info("W&B training run logged: %s", run_url)
-    return run_url
+    return {"run_id": run_id, "run_url": run_url}
 
 
 def log_evaluation_run(
@@ -128,9 +136,12 @@ def log_evaluation_run(
     model_name: str,
     metrics: dict[str, Any],
     artifact_path: str | None = None,
+    wandb_run_id: str | None = None,
 ) -> str | None:
     """
     Log evaluation metrics (and optionally link the model artifact).
+
+    If ``wandb_run_id`` is provided, resumes that training run.
 
     Returns the W&B run URL when logging succeeds, else None.
     """
@@ -145,15 +156,17 @@ def log_evaluation_run(
     if model_name not in tags:
         tags.append(model_name)
 
-    run = wandb.init(
-        project=settings.get("project", "network-monitoring"),
-        entity=settings.get("entity"),
-        name=_build_run_name(model_name, "evaluate"),
-        job_type="evaluate",
-        tags=tags,
-        config={"model_name": model_name},
-        reinit=True,
-    )
+    init_overrides: dict[str, Any] = {
+        "name": _build_run_name(model_name, "evaluate"),
+        "job_type": "evaluate",
+        "tags": tags,
+        "config": {"model_name": model_name},
+    }
+    if wandb_run_id:
+        init_overrides["id"] = wandb_run_id
+        init_overrides["resume"] = "allow"
+
+    run = wandb.init(**_init_kwargs(settings, **init_overrides))
 
     log_metrics = {k: v for k, v in metrics.items() if v is not None}
     if log_metrics:

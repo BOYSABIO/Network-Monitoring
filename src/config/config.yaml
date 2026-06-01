@@ -19,7 +19,7 @@ paths:
 wandb:
   enabled: true
   project: network-monitoring
-  entity: null          # optional W&B username or team
+  entity: models-ie-university
   tags:
     - nids
     - binary-classification
@@ -28,8 +28,8 @@ wandb:
 
 # --- Model training settings ---
 model:
-  # Which model to train/evaluate — must match a key in the registry
-  active: logistic_regression
+  # Which model to train/evaluate/infer — must match a key in the registry
+  active: random_forest_baseline
   test_size: 0.2
   random_state: 42
   cv_folds: 3

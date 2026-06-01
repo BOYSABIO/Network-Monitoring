@@ -213,7 +213,7 @@ def train(df, model_name=None):
     logging.info("Artifact saved to %s", artifact_path)
 
     try:
-        log_training_run(
+        wandb_info = log_training_run(
             model_name=model_name,
             metrics={
                 "best_cv_score": best_score,
@@ -228,6 +228,9 @@ def train(df, model_name=None):
             reports_dir=reports_dir,
             used_grid_search=used_grid_search,
         )
+        if wandb_info:
+            artifact['wandb_run_id'] = wandb_info['run_id']
+            joblib.dump(artifact, artifact_path)
     except ImportError:
         pass
 

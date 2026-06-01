@@ -270,8 +270,7 @@ Examples:
     p_infer.add_argument('--output', type=str, default=None,
                          help='Path for results CSV (default: reports/inference_results.csv)')
     p_infer.add_argument('--model', type=str, default=None,
-                         help=('Trained model name (artifact models/<name>.joblib; '
-                               'default: config active)'))
+                         help='Model name (default: config model.active)')
 
     # --- live ---
     p_live = subparsers.add_parser('live', help='Live monitoring on a network interface')
@@ -280,8 +279,7 @@ Examples:
     p_live.add_argument('--duration', type=int, default=None,
                         help='Stop after N seconds (default: run until Ctrl+C)')
     p_live.add_argument('--model', type=str, default=None,
-                        help=('Trained model name (artifact models/<name>.joblib; '
-                              'default: config active)'))
+                        help='Model name (default: config model.active)')
 
     # --- ols ---
     p_ols = subparsers.add_parser('ols', help='Run OLS feature significance analysis')
