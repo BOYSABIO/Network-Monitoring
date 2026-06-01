@@ -14,7 +14,7 @@
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-
+from xgboost import XGBClassifier
 REGISTRY = {}
 
 
@@ -131,4 +131,50 @@ def build_random_forest():
         'min_samples_split': [2, 5]
     }
 
+    return model, param_grid
+
+
+@register("xgboost")
+def build_xgboost():
+    """
+    XGBoost Classifier (TASK benchmark config — fixed params, no grid search).
+    """
+    model = XGBClassifier(
+        learning_rate=0.1,
+        max_depth=6,
+        n_estimators=200,
+        random_state=42,
+        n_jobs=-1,
+        eval_metric="logloss",
+    )
+    param_grid = {}
+    return model, param_grid
+
+
+@register("random_forest_baseline")
+def build_random_forest_baseline():
+    """
+    Random Forest Classifier.
+    """
+    model = RandomForestClassifier(
+        random_state=42,
+        n_jobs=-1
+    )
+    param_grid = {}
+    return model, param_grid
+
+
+@register("random_forest_tuned")
+def build_random_forest_tuned():
+    """
+    Random Forest Classifier (TASK tuned benchmark — fixed params).
+    """
+    model = RandomForestClassifier(
+        n_estimators=300,
+        max_depth=15,
+        min_samples_split=5,
+        random_state=42,
+        n_jobs=-1,
+    )
+    param_grid = {}
     return model, param_grid
