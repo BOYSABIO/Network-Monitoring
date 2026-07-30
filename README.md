@@ -6,6 +6,8 @@ This repository documents a **personal network monitoring and observability lab*
 
 The project focuses on **operating real infrastructure**, capturing and analyzing network data, and building a foundation for **security monitoring and future ML-based detection**.
 
+**Current work:** Close the gap from trained model → live Zeek detection. Progress is tracked on [GitHub milestones](https://github.com/BOYSABIO/Network-Monitoring/milestones) (M0–M5 + backlog). Architecture and constraints: [`about.md`](about.md).
+
 ---
 
 ## Network Intrusion Detection (Binary Classification)
